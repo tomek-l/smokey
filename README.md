@@ -29,3 +29,24 @@ sudo systemctl enable smokey.service
 # Potential issues
 
 1. Make sure the serial port in `config.json` matches the port you connected your PMS7003 to. In most cases it will be `"/dev/serial0"`, so I left that as a default.
+
+
+# Headless setup
+
+1. On the `boot` partition of your Pi's SD card create a `wpa_supplicant.conf` file with the following content
+```conf
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+country=US
+
+network={
+ ssid="<Name of your wireless LAN>"
+ psk="<Password for your wireless LAN>"
+}
+```
+
+2. Enable SSH by creating an `ssh` file on `/boot` partition
+
+```shell
+touch /media/tomek/boot/ssh
+```

@@ -8,6 +8,9 @@ import json
 
 from pms7003 import Pms7003Thread
 
+import logging
+import sys
+
 
 class ValueHandler(tornado.web.RequestHandler):
     def get(self):
@@ -32,6 +35,7 @@ def make_app():
 
 def send_measurement():
     try:
+        logging.debug(str(sensor.measurements))
         request_fields = {}
         request_fields["timestamp"] = time.time()
         request_fields["values"] = sensor.measurements
@@ -39,9 +43,11 @@ def send_measurement():
             config["uri"] + "/nodes/" + config["node_id"] + "/measurements/",
             headers={"Content-Type": "application/json"},
             json=request_fields,
-            timeout=2,
+            timeout=3,
         )
-        print(r.status_code)
+    except requests.exceptions.ConnectionError as e:
+        logging.error(e)
+        logging.error("Connection error. Backend down?")
     finally:
         tornado.ioloop.IOLoop.instance().add_timeout(
             timedelta(seconds=1), send_measurement
@@ -50,11 +56,27 @@ def send_measurement():
 
 if __name__ == "__main__":
 
+    # get config
     with open("/home/pi/smokey/config.json", "r") as f:
         config = json.loads(f.read())
 
+    # setup logging
+    if config["log_file"]:
+        logging.basicConfig(
+            filename=config["log_file"],
+            level=logging.DEBUG,
+            format="%(asctime)-15s %(levelname)s %(message)s",
+        )
+    else:
+        logging.basicConfig(
+            stream=sys.stdout,
+            level=logging.DEBUG,
+            format="%(asctime)-15s %(levelname)s %(message)s",
+        )
+
+    # run application
     with Pms7003Thread(config["serial_port"]) as sensor:
-        # send_measurement()
+        send_measurement()
         app = make_app()
         app.listen(8888)
         tornado.ioloop.IOLoop.current().start()
